@@ -1,0 +1,37 @@
+# ======================
+# Frontend (Next.js)
+# ======================
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+
+# ======================
+# Backend (Python)
+# ======================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+venv/
+.env
+
+# ======================
+# Database
+# ======================
+*.db
+*.sqlite3
+
+# ======================
+# Environment files
+# ======================
+.env
+.env.local
+
+# ======================
+# OS / Misc
+# ======================
+.DS_Store
+Thumbs.db
