@@ -175,3 +175,35 @@ finance-dashboard/
 **Seeder is idempotent** — running `python -m app.seed` multiple times won't create duplicate users (checks by email), and won't add transactions if any already exist.
 
 **No rate limiting implemented** — noted as an optional enhancement. Would add via `slowapi` on the FastAPI side for production use.
+
+### Screenshots Images of the application
+
+## dashboard
+** Dashboard Summary ** - Examples include:
+Total income
+Total expenses
+Net balance
+Category wise totals
+Recent activity
+Monthly or weekly trends.
+![Dashboard](images/dashboard.png)
+
+## Financial Records Management
+
+** Create backend support for financial data such as transactions or entries.
+
+Each record can include fields such as:
+
+Amount
+Type such as income or expense
+Category
+Date
+Notes or description
+Your backend should support operations such as:
+Creating records
+Viewing records
+Updating records
+Deleting records
+Filtering records based on criteria such as date, category, or type 
+![Dashboard](images/transaction_record.png)
+
