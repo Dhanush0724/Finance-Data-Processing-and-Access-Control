@@ -1,0 +1,876 @@
+{
+  "info": {
+    "name": "Finance Dashboard API",
+    "description": "Role-based finance management system built with FastAPI + SQLite.\n\n## Quick Start\n1. Run the backend: `uvicorn app.main:app --reload --port 8000`\n2. Seed demo data: `python -m app.seed`\n3. Use **POST /auth/login** with one of the demo credentials to get a token\n4. The collection auto-saves the token — all subsequent requests are authenticated\n\n## Demo Credentials\n| Email | Password | Role |\n|---|---|---|\n| admin@finance.dev | admin123 | Admin — full access |\n| analyst@finance.dev | analyst123 | Analyst — read + create/edit own |\n| viewer@finance.dev | viewer123 | Viewer — read only |",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "finance-dashboard-api-v1"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string",
+      "description": "Change to your deployed URL if hosted"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "Auto-populated after login"
+    },
+    {
+      "key": "transactionId",
+      "value": "",
+      "type": "string",
+      "description": "Auto-populated after creating a transaction"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string",
+      "description": "Auto-populated after creating a user"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Authentication endpoints — login, register, and current user profile.",
+      "item": [
+        {
+          "name": "Login as Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.access_token) {",
+                  "  pm.collectionVariables.set('token', json.access_token);",
+                  "  console.log('Token saved. Role:', json.user.role);",
+                  "}",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has access_token', () => pm.expect(json).to.have.property('access_token'));",
+                  "pm.test('Role is admin', () => pm.expect(json.user.role).to.eql('admin'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@finance.dev\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login with admin credentials. The test script auto-saves the JWT token to the `{{token}}` collection variable — all subsequent requests use it automatically."
+          }
+        },
+        {
+          "name": "Login as Analyst",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.access_token) {",
+                  "  pm.collectionVariables.set('token', json.access_token);",
+                  "  console.log('Token saved. Role:', json.user.role);",
+                  "}",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Role is analyst', () => pm.expect(json.user.role).to.eql('analyst'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"analyst@finance.dev\",\n  \"password\": \"analyst123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login as Viewer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.access_token) {",
+                  "  pm.collectionVariables.set('token', json.access_token);",
+                  "}",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Role is viewer', () => pm.expect(json.user.role).to.eql('viewer'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"viewer@finance.dev\",\n  \"password\": \"viewer123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login — Wrong Password (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Has detail field', () => pm.expect(pm.response.json()).to.have.property('detail'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@finance.dev\",\n  \"password\": \"wrongpassword\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Demonstrates proper 401 response for bad credentials."
+          }
+        },
+        {
+          "name": "Register (self-signup → always viewer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Role forced to viewer', () => pm.expect(pm.response.json().role).to.eql('viewer'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@example.com\",\n  \"name\": \"New User\",\n  \"password\": \"mypassword\",\n  \"role\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Self-registration. Note: even if `role: admin` is sent, the backend forces the role to `viewer` to prevent privilege escalation."
+          }
+        },
+        {
+          "name": "Get Current User (me)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Has id, email, role', () => {",
+                  "  pm.expect(json).to.have.property('id');",
+                  "  pm.expect(json).to.have.property('email');",
+                  "  pm.expect(json).to.have.property('role');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Returns the profile of the currently authenticated user."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Transactions",
+      "description": "Financial record management. Viewers can read; analysts can create and edit their own; admins have full access.",
+      "item": [
+        {
+          "name": "Create Transaction (income)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('transactionId', json.id);",
+                  "pm.test('Category lowercased', () => pm.expect(json.category).to.eql('salary'));",
+                  "pm.test('Amount correct', () => pm.expect(json.amount).to.eql(5000));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 5000,\n  \"type\": \"income\",\n  \"category\": \"salary\",\n  \"date\": \"2024-07-01T00:00:00\",\n  \"description\": \"Monthly salary — July 2024\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Requires analyst or admin role. The created transaction ID is auto-saved to `{{transactionId}}`."
+          }
+        },
+        {
+          "name": "Create Transaction (expense)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1200,\n  \"type\": \"expense\",\n  \"category\": \"rent\",\n  \"date\": \"2024-07-05T00:00:00\",\n  \"description\": \"Monthly rent\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            }
+          }
+        },
+        {
+          "name": "Create Transaction — Invalid (negative amount)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422 Unprocessable Entity', () => pm.response.to.have.status(422));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": -500,\n  \"type\": \"expense\",\n  \"category\": \"groceries\",\n  \"date\": \"2024-07-10T00:00:00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Demonstrates input validation — negative amounts are rejected with 422."
+          }
+        },
+        {
+          "name": "List All Transactions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Has pagination fields', () => {",
+                  "  pm.expect(json).to.have.property('items');",
+                  "  pm.expect(json).to.have.property('total');",
+                  "  pm.expect(json).to.have.property('page');",
+                  "  pm.expect(json).to.have.property('total_pages');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/transactions?page=1&page_size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "page_size", "value": "20" }
+              ]
+            },
+            "description": "Returns paginated transactions. Accessible by all authenticated roles."
+          }
+        },
+        {
+          "name": "Filter by Type (income only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().items;",
+                  "pm.test('All items are income', () => {",
+                  "  items.forEach(tx => pm.expect(tx.type).to.eql('income'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/transactions?type=income",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"],
+              "query": [
+                { "key": "type", "value": "income" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filter by Category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().items;",
+                  "pm.test('All items are salary category', () => {",
+                  "  items.forEach(tx => pm.expect(tx.category).to.eql('salary'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/transactions?category=salary",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"],
+              "query": [
+                { "key": "category", "value": "salary" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filter by Date Range",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/transactions?date_from=2024-07-01T00:00:00&date_to=2024-07-31T23:59:59",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"],
+              "query": [
+                { "key": "date_from", "value": "2024-07-01T00:00:00" },
+                { "key": "date_to", "value": "2024-07-31T23:59:59" }
+              ]
+            },
+            "description": "Returns only transactions within July 2024."
+          }
+        },
+        {
+          "name": "Filter — Combined (expense + category + date)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/transactions?type=expense&category=rent&date_from=2024-01-01T00:00:00",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"],
+              "query": [
+                { "key": "type", "value": "expense" },
+                { "key": "category", "value": "rent" },
+                { "key": "date_from", "value": "2024-01-01T00:00:00" }
+              ]
+            },
+            "description": "All filters can be combined freely."
+          }
+        },
+        {
+          "name": "Search Transactions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/transactions?search=salary",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"],
+              "query": [
+                { "key": "search", "value": "salary" }
+              ]
+            },
+            "description": "Full-text search across description and category fields."
+          }
+        },
+        {
+          "name": "Get Transaction by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ID matches', () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('transactionId')));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/transactions/{{transactionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "{{transactionId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Transaction",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Amount updated', () => pm.expect(pm.response.json().amount).to.eql(5500));",
+                  "pm.test('Description updated', () => pm.expect(pm.response.json().description).to.include('updated'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 5500,\n  \"description\": \"Monthly salary — updated\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions/{{transactionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "{{transactionId}}"]
+            },
+            "description": "Partial update — only send fields you want to change. Analysts can only update their own transactions; admins can update any."
+          }
+        },
+        {
+          "name": "Delete Transaction (soft delete)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/transactions/{{transactionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "{{transactionId}}"]
+            },
+            "description": "Soft delete — sets `is_deleted=true`. The record is preserved in the database but excluded from all queries and dashboard totals."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "description": "Aggregated summary data for the dashboard UI. Accessible by all authenticated roles.",
+      "item": [
+        {
+          "name": "Get Dashboard Summary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Has all summary fields', () => {",
+                  "  ['total_income','total_expense','net_balance','transaction_count',",
+                  "   'income_by_category','expense_by_category','monthly_trends','recent_transactions']",
+                  "  .forEach(k => pm.expect(json).to.have.property(k));",
+                  "});",
+                  "pm.test('Net balance = income - expense', () => {",
+                  "  const expected = parseFloat((json.total_income - json.total_expense).toFixed(2));",
+                  "  pm.expect(json.net_balance).to.be.closeTo(expected, 0.01);",
+                  "});",
+                  "pm.test('Monthly trends are sorted', () => {",
+                  "  const trends = json.monthly_trends;",
+                  "  for (let i = 1; i < trends.length; i++) {",
+                  "    const prev = trends[i-1].year * 12 + trends[i-1].month;",
+                  "    const curr = trends[i].year * 12 + trends[i].month;",
+                  "    pm.expect(curr).to.be.at.least(prev);",
+                  "  }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["dashboard", "summary"]
+            },
+            "description": "Returns:\n- `total_income` / `total_expense` / `net_balance` — all-time totals\n- `transaction_count` — total active records\n- `income_by_category` / `expense_by_category` — sorted by total descending\n- `monthly_trends` — year/month breakdown with income, expense, net\n- `recent_transactions` — last 10 records ordered by date"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users (Admin only)",
+      "description": "User management endpoints. All require admin role — analyst and viewer requests will receive 403.",
+      "item": [
+        {
+          "name": "List All Users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "pm.test('Users have expected fields', () => {",
+                  "  const u = pm.response.json()[0];",
+                  "  ['id','email','name','role','is_active','created_at'].forEach(k => pm.expect(u).to.have.property(k));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            },
+            "description": "Returns all users ordered by creation date (newest first). Admin only."
+          }
+        },
+        {
+          "name": "Create User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('userId', json.id);",
+                  "pm.test('Role is analyst', () => pm.expect(json.role).to.eql('analyst'));",
+                  "pm.test('Is active by default', () => pm.expect(json.is_active).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newanalyst@finance.dev\",\n  \"name\": \"New Analyst\",\n  \"password\": \"securepass123\",\n  \"role\": \"analyst\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            },
+            "description": "Admin can create users with any role. The new user's ID is saved to `{{userId}}`."
+          }
+        },
+        {
+          "name": "Create User — Duplicate Email (expect 409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 409 Conflict', () => pm.response.to.have.status(409));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@finance.dev\",\n  \"name\": \"Duplicate\",\n  \"password\": \"whatever\",\n  \"role\": \"viewer\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            },
+            "description": "Demonstrates duplicate email conflict — returns 409."
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update User (role + deactivate)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Role updated to viewer', () => pm.expect(pm.response.json().role).to.eql('viewer'));",
+                  "pm.test('Account deactivated', () => pm.expect(pm.response.json().is_active).to.be.false);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"viewer\",\n  \"is_active\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "{{userId}}"]
+            },
+            "description": "Partial update — any combination of `name`, `role`, `is_active`."
+          }
+        },
+        {
+          "name": "Delete User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "{{userId}}"]
+            },
+            "description": "Permanently deletes the user. Admins cannot delete their own account."
+          }
+        },
+        {
+          "name": "Access Control — Viewer cannot list users (expect 403)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Temporarily swap token to viewer token to test access control.",
+                  "// Run 'Login as Viewer' first, copy the token here.",
+                  "// Better approach: use Postman environments with separate admin/viewer tokens."
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 403 Forbidden', () => pm.response.to.have.status(403));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "paste-viewer-token-here",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            },
+            "description": "Shows that non-admin roles receive 403 Forbidden on user management endpoints."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "No auth required. Use this to verify the server is running."
+          }
+        }
+      ]
+    }
+  ]
+}
