@@ -179,31 +179,64 @@ finance-dashboard/
 ### Screenshots Images of the application
 
 ## dashboard
-** Dashboard Summary ** - Examples include:
-Total income
-Total expenses
-Net balance
-Category wise totals
-Recent activity
-Monthly or weekly trends.
+** Dashboard Summary **:
+The dashboard provides a comprehensive overview of financial activity, including:
+- **Total Income** – Overview of all earnings
+- **Total Expenses** – Summary of expenditures
+- **Net Balance** – Current financial position
+- **Category-wise Totals** – Breakdown of spending by category
+- **Recent Activity** – Latest transactions and updates
+- **Monthly/Weekly Trends** – Insights into financial patterns over time
 ![Dashboard](images/dashboard.png)
 
 ## Financial Records Management
+- 💰 **Amount**
+- 🔄 **Type** (Income / Expense)
+- 📂 **Category**
+- 📅 **Date**
+- 📝 **Notes / Description**
 
-** Create backend support for financial data such as transactions or entries.
 
-Each record can include fields such as:
+![Dashboard](images/adding_transaction.png)
 
-Amount
-Type such as income or expense
-Category
-Date
-Notes or description
-Your backend should support operations such as:
-Creating records
-Viewing records
-Updating records
-Deleting records
-Filtering records based on criteria such as date, category, or type 
-![Dashboard](images/transaction_record.png)
+## 👥 User & Role Management
+
+This module implements role-based access control (RBAC) to manage user permissions and system security.
+
+### 📌 User Management
+
+- Create and manage user accounts  
+- Assign roles to users  
+- Control user status (Active / Inactive)  
+
+### 🔐 Role-Based Access Control (RBAC)
+
+Access to system features is restricted based on assigned user roles.
+
+### 🎭 Roles & Permissions
+
+- **Viewer**
+  - Access: Dashboard view only
+![Viewer](images/viewer_dashboard.png)
+- **Analyst**
+  - Access: View financial records and insights
+![Analyst](images/anaylst_dashboard.png)
+- **Admin**
+  - Access:
+    - Create, update, and delete records  
+    - Manage users and roles
+![Admin](images/transaction_records.png)
+![Admin](images/users.png)
+
+## ✨ Optional Enhancements
+
+The system can be enhanced with the following additional features:
+
+- 🔐 **Authentication** using tokens 
+- 📄 **Pagination** for efficient record listing  
+- 🔍 **Search Support** for quick data retrieval  
+- ♻️ **Soft Delete Functionality** (mark records instead of permanent deletion)  
+- 🚦 **Rate Limiting** to prevent abuse  
+- 🧪 **Unit / Integration Tests** for reliability  
+- 📘 **API Documentation** for better developer experience  
 
