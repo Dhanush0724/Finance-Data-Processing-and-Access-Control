@@ -77,3 +77,8 @@ def delete_transaction(
 ):
     """Soft-delete a transaction."""
     transaction_service.delete_transaction(tx_id, current_user, db)
+
+@router.get("/health/ping")
+def ping():
+    """Health check endpoint."""
+    return {"status": "ok"}
