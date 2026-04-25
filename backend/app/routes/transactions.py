@@ -82,3 +82,9 @@ def delete_transaction(
 def ping():
     """Health check endpoint."""
     return {"status": "ok"}
+
+"""this is for test pipeline running, not an actual feature, so we can just return a placeholder response for now"""
+@router.get("/export/summary")
+def export_summary():
+    """Returns a summary export placeholder."""
+    return {"message": "Export feature coming soon", "status": "placeholder"}

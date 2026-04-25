@@ -9,12 +9,16 @@ from app.utils.config import settings
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def hash_password(plain: str) -> str:
-    return pwd_context.hash(plain)
+def hash_password(plain: str):
+    import hashlib
+    digest = hashlib.sha256(plain.encode()).hexdigest()
+    return pwd_context.hash(digest)
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    import hashlib
+    digest = hashlib.sha256(plain.encode()).hexdigest()
+    return pwd_context.verify(digest, hashed)
 
 
 def create_access_token(subject: str, role: str) -> str:

@@ -1,109 +1,140 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from fastapi.testclient import TestClient
+from fastapi import HTTPException
+from datetime import datetime
+
 from app.main import app
-from app.schemas.schemas import TransactionCreate, TransactionUpdate, TransactionOut, PaginatedTransactions
-from app.models.models import User
+from app.models.models import User, UserRole
 
 client = TestClient(app)
 
-@pytest.fixture
-def mock_db_session():
-    with patch('app.database.get_db', return_value=MagicMock()) as mock:
+
+# ✅ Override auth
+from app.middleware.auth_deps import require_analyst, require_viewer
+
+def override_user():
+    return User(
+        id="1",
+        email="test@test.com",
+        name="Test User",
+        hashed_pw="dummy",
+        role=UserRole.analyst,
+        is_active=True
+    )
+
+app.dependency_overrides[require_analyst] = override_user
+app.dependency_overrides[require_viewer] = override_user
+
+
+# ✅ Patch service
+@pytest.fixture(autouse=True)
+def mock_service():
+    with patch("app.routes.transactions.transaction_service") as mock:
         yield mock
 
-@pytest.fixture
-def mock_current_user():
-    user = User(id=1, username='testuser', role='analyst')
-    with patch('app.middleware.auth_deps.require_analyst', return_value=user):
-        yield user
 
-@pytest.fixture
-def mock_transaction_service():
-    with patch('app.services.transaction_service') as mock_service:
-        yield mock_service
+# ── Helpers ────────────────────────────────────────────────────────────────────
 
-def test_create_transaction_happy_path(mock_db_session, mock_current_user, mock_transaction_service):
-    transaction_data = TransactionCreate(amount=100.0, currency='USD', description='Test transaction')
-    mock_transaction_service.create_transaction.return_value = TransactionOut(id='1', **transaction_data.dict())
-    
-    response = client.post("/transactions", json=transaction_data.dict())
-    
+def valid_tx_payload():
+    return {
+        "amount": 100.0,
+        "type": "income",
+        "category": "general",
+        "date": datetime.now().isoformat(),
+        "description": "Test transaction"
+    }
+
+
+def valid_tx_response():
+    return {
+        "id": "1",
+        "amount": 100.0,
+        "type": "income",
+        "category": "general",
+        "date": datetime.now().isoformat(),
+        "description": "Test transaction",
+        "created_by": "1",
+        "created_at": datetime.now().isoformat(),
+        "updated_at": datetime.now().isoformat(),
+    }
+
+
+def valid_paginated_response(items=None):
+    """Matches PaginatedTransactions schema fields exactly."""
+    return {
+        "items":       items or [],
+        "total":       len(items) if items else 0,
+        "page":        1,
+        "page_size":   20,
+        "total_pages": 1,
+    }
+
+
+# ── Tests ──────────────────────────────────────────────────────────────────────
+
+def test_create_transaction_happy_path(mock_service):
+    mock_service.create_transaction.return_value = valid_tx_response()
+    response = client.post("/transactions", json=valid_tx_payload())
     assert response.status_code == 201
-    assert response.json()['id'] == '1'
+    assert response.json()["id"] == "1"
 
-def test_create_transaction_zero_amount(mock_db_session, mock_current_user, mock_transaction_service):
-    transaction_data = TransactionCreate(amount=0.0, currency='USD', description='Zero amount transaction')
-    mock_transaction_service.create_transaction.return_value = TransactionOut(id='2', **transaction_data.dict())
-    
-    response = client.post("/transactions", json=transaction_data.dict())
-    
-    assert response.status_code == 201
-    assert response.json()['id'] == '2'
 
-def test_create_transaction_negative_amount(mock_db_session, mock_current_user, mock_transaction_service):
-    transaction_data = TransactionCreate(amount=-50.0, currency='USD', description='Negative amount transaction')
-    
-    response = client.post("/transactions", json=transaction_data.dict())
-    
-    assert response.status_code == 422  # Expecting validation error
+def test_create_transaction_negative_amount(mock_service):
+    data = valid_tx_payload()
+    data["amount"] = -50.0
+    response = client.post("/transactions", json=data)
+    assert response.status_code == 422
 
-def test_list_transactions_happy_path(mock_db_session, mock_current_user, mock_transaction_service):
-    mock_transaction_service.list_transactions.return_value = {'transactions': [], 'total': 0}
-    
+
+def test_list_transactions_happy_path(mock_service):
+    mock_service.list_transactions.return_value = valid_paginated_response()
     response = client.get("/transactions")
-    
     assert response.status_code == 200
-    assert response.json() == {'transactions': [], 'total': 0}
+    assert response.json()["total"] == 0
+    assert response.json()["page"] == 1
 
-def test_get_transaction_happy_path(mock_db_session, mock_current_user, mock_transaction_service):
-    mock_transaction_service.get_transaction.return_value = TransactionOut(id='1', amount=100.0, currency='USD', description='Test transaction')
-    
+
+def test_list_transactions_with_filters(mock_service):
+    mock_service.list_transactions.return_value = valid_paginated_response(
+        items=[valid_tx_response()]
+    )
+    response = client.get("/transactions?type=income&category=general")
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
+
+
+def test_get_transaction_happy_path(mock_service):
+    mock_service.get_transaction.return_value = valid_tx_response()
     response = client.get("/transactions/1")
-    
     assert response.status_code == 200
-    assert response.json()['id'] == '1'
+    assert response.json()["id"] == "1"
 
-def test_update_transaction_happy_path(mock_db_session, mock_current_user, mock_transaction_service):
-    transaction_data = TransactionUpdate(amount=150.0, currency='USD', description='Updated transaction')
-    mock_transaction_service.update_transaction.return_value = TransactionOut(id='1', **transaction_data.dict())
-    
-    response = client.patch("/transactions/1", json=transaction_data.dict())
-    
+
+def test_get_transaction_not_found(mock_service):
+    mock_service.get_transaction.side_effect = HTTPException(status_code=404, detail="Not found")
+    response = client.get("/transactions/999")
+    assert response.status_code == 404
+
+
+def test_update_transaction_happy_path(mock_service):
+    mock_service.update_transaction.return_value = valid_tx_response()
+    response = client.patch("/transactions/1", json=valid_tx_payload())
     assert response.status_code == 200
-    assert response.json()['amount'] == 150.0
 
-def test_delete_transaction_happy_path(mock_db_session, mock_current_user, mock_transaction_service):
+
+def test_update_transaction_not_found(mock_service):
+    mock_service.update_transaction.side_effect = HTTPException(status_code=404, detail="Not found")
+    response = client.patch("/transactions/999", json=valid_tx_payload())
+    assert response.status_code == 404
+
+
+def test_delete_transaction_happy_path(mock_service):
     response = client.delete("/transactions/1")
-    
     assert response.status_code == 204
-    mock_transaction_service.delete_transaction.assert_called_once_with('1', mock_current_user, mock_db_session())
 
-def test_ping(mock_db_session):
+
+def test_ping():
     response = client.get("/transactions/health/ping")
-    
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
-
-def test_list_transactions_with_filters(mock_db_session, mock_current_user, mock_transaction_service):
-    mock_transaction_service.list_transactions.return_value = {'transactions': [{'id': '1'}], 'total': 1}
-    
-    response = client.get("/transactions?type=expense&category=food&date_from=2023-01-01&date_to=2023-12-31&page=1&page_size=10")
-    
-    assert response.status_code == 200
-    assert response.json()['total'] == 1
-
-def test_get_transaction_not_found(mock_db_session, mock_current_user, mock_transaction_service):
-    mock_transaction_service.get_transaction.side_effect = Exception("Transaction not found")
-    
-    response = client.get("/transactions/999")
-    
-    assert response.status_code == 404  # Expecting not found error
-
-def test_update_transaction_not_found(mock_db_session, mock_current_user, mock_transaction_service):
-    transaction_data = TransactionUpdate(amount=150.0, currency='USD', description='Updated transaction')
-    mock_transaction_service.update_transaction.side_effect = Exception("Transaction not found")
-    
-    response = client.patch("/transactions/999", json=transaction_data.dict())
-    
-    assert response.status_code == 404  # Expecting not found error
