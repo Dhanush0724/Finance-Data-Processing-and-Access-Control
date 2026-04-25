@@ -1,15 +1,14 @@
 """
 ai_agent.py
 ───────────
-Core AI reasoning unit — powered exclusively by OpenRouter.
+Core AI reasoning unit — powered by an OpenAI-compatible API.
 
-OpenRouter provides a unified OpenAI-compatible API that routes to any
-major model: GPT-4o, Gemini, DeepSeek, Llama, Mistral, Claude, and more.
+Works with OpenRouter, Google Gemini, or any OpenAI-compatible endpoint.
 Switch the model anytime via the OPENROUTER_MODEL environment variable
 without touching any code.
 
 Docs: https://openrouter.ai/docs
-Models: https://openrouter.ai/models
+Gemini: https://ai.google.dev/gemini-api/docs/openai
 """
 
 import os
@@ -58,19 +57,6 @@ def analyse_and_generate(
     diagnostics: str = "",
     attempt: int = 1,
 ) -> str:
-    """
-    Calls OpenRouter with the full context payload and returns
-    extracted, executable pytest test code.
-
-    Args:
-        filepath:    The source file being tested
-        context:     Dict with keys: source, diff, existing_tests, imports, knowledge
-        diagnostics: Validation failure output from previous attempt (retry context)
-        attempt:     Current attempt number (1-based, used in logging)
-
-    Returns:
-        String containing only the Python test code (no fences, no preamble)
-    """
     _validate_api_key()
 
     user_prompt = _build_prompt(filepath, context, diagnostics, attempt)
@@ -82,17 +68,17 @@ def analyse_and_generate(
     return _extract_code_block(raw_text)
 
 
-# ── OpenRouter API Call ────────────────────────────────────────────────────────
+# ── API Call ───────────────────────────────────────────────────────────────────
 
 def _call_openrouter(user_prompt: str) -> str:
     """
-    POSTs to OpenRouter's /chat/completions endpoint.
-    Uses the OpenAI message format — compatible with all OpenRouter models.
+    POSTs to the configured /chat/completions endpoint.
+    Compatible with OpenRouter, Gemini, and any OpenAI-compatible API.
+    The 'provider' field is intentionally omitted for broad compatibility.
     """
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type":  "application/json",
-        # These headers appear in your OpenRouter usage dashboard
         "HTTP-Referer":  OPENROUTER_APP_URL,
         "X-Title":       OPENROUTER_APP_NAME,
     }
@@ -105,10 +91,7 @@ def _call_openrouter(user_prompt: str) -> str:
         ],
         "max_tokens":  4096,
         "temperature": OPENROUTER_TEMPERATURE,
-        # Ask OpenRouter to prefer providers with low latency
-        "provider": {
-            "sort": "throughput",
-        },
+        # NOTE: 'provider' field removed — not supported by Gemini or direct APIs
     }
 
     try:
@@ -120,37 +103,36 @@ def _call_openrouter(user_prompt: str) -> str:
         )
     except requests.Timeout:
         raise RuntimeError(
-            "OpenRouter request timed out after 120s. "
-            "Try a faster model (e.g. openai/gpt-4o-mini) or increase timeout."
+            "Request timed out after 120s. "
+            "Try a faster model or increase timeout."
         )
     except requests.ConnectionError as e:
-        raise RuntimeError(f"OpenRouter connection failed: {e}")
+        raise RuntimeError(f"Connection failed: {e}")
 
-    # ── Handle HTTP errors with useful messages ────────────────────────────────
+    # ── Handle HTTP errors ─────────────────────────────────────────────────────
     if response.status_code == 401:
         raise RuntimeError(
-            "OpenRouter returned 401 Unauthorized. "
-            "Check that OPENROUTER_API_KEY is set correctly."
+            "401 Unauthorized. "
+            "Check that your API key is set correctly."
         )
     if response.status_code == 402:
         raise RuntimeError(
-            "OpenRouter returned 402 Payment Required. "
+            "402 Payment Required. "
             "Add credits at https://openrouter.ai/credits"
         )
     if response.status_code == 429:
         raise RuntimeError(
-            "OpenRouter rate limit hit (429). "
-            "Reduce request frequency or upgrade your plan."
+            "Rate limit hit (429). "
+            "Reduce request frequency or switch to a different model."
         )
     if response.status_code != 200:
         raise RuntimeError(
-            f"OpenRouter API error {response.status_code}:\n{response.text[:600]}"
+            f"API error {response.status_code}:\n{response.text[:600]}"
         )
 
     # ── Parse response ─────────────────────────────────────────────────────────
     data = response.json()
 
-    # Log token usage for cost tracking
     usage = data.get("usage", {})
     if usage:
         print(
@@ -163,7 +145,7 @@ def _call_openrouter(user_prompt: str) -> str:
         return data["choices"][0]["message"]["content"]
     except (KeyError, IndexError) as e:
         raise RuntimeError(
-            f"Unexpected OpenRouter response shape. "
+            f"Unexpected response shape. "
             f"Expected choices[0].message.content. Got: {data}"
         ) from e
 
@@ -176,7 +158,6 @@ def _build_prompt(
     diagnostics: str,
     attempt: int,
 ) -> str:
-    """Assembles the structured user prompt sent to the model."""
     source         = context.get("source", "")
     diff           = context.get("diff", "")
     existing_tests = context.get("existing_tests")
@@ -221,7 +202,6 @@ Output ONLY a single ```python ... ``` code block — no explanation, no preambl
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _validate_api_key() -> None:
-    """Fails fast with a clear message if the API key is missing."""
     if not OPENROUTER_API_KEY:
         raise ValueError(
             "OPENROUTER_API_KEY is not set.\n"
@@ -231,10 +211,6 @@ def _validate_api_key() -> None:
 
 
 def _extract_code_block(text: str) -> str:
-    """
-    Extracts the first ```python ... ``` fenced block from the model response.
-    Falls back to returning the raw text if no fences are found.
-    """
     match = re.search(r"```python\n(.*?)```", text, re.DOTALL)
     if match:
         return match.group(1).strip()
