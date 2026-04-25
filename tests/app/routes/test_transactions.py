@@ -60,6 +60,16 @@ def valid_tx_response():
     }
 
 
+def valid_tx_update_payload():
+    return {
+        "amount": 150.0,
+        "type": "income",
+        "category": "general",
+        "date": datetime.now().isoformat(),
+        "description": "Updated test transaction"
+    }
+
+
 def valid_paginated_response(items=None):
     """Matches PaginatedTransactions schema fields exactly."""
     return {
@@ -131,25 +141,25 @@ def test_get_transaction_not_found(mock_service):
 
 def test_update_transaction_happy_path(mock_service):
     mock_service.update_transaction.return_value = valid_tx_response()
-    response = client.patch("/transactions/1", json=valid_tx_payload())
+    response = client.patch("/transactions/1", json=valid_tx_update_payload())
     assert response.status_code == 200
 
 
 def test_update_transaction_not_found(mock_service):
     mock_service.update_transaction.side_effect = HTTPException(status_code=404, detail="Not found")
-    response = client.patch("/transactions/999", json=valid_tx_payload())
+    response = client.patch("/transactions/999", json=valid_tx_update_payload())
     assert response.status_code == 404
 
 
 def test_update_transaction_negative_amount(mock_service):
-    data = valid_tx_payload()
+    data = valid_tx_update_payload()
     data["amount"] = -50.0
     response = client.patch("/transactions/1", json=data)
     assert response.status_code == 422
 
 
 def test_update_transaction_zero_amount(mock_service):
-    data = valid_tx_payload()
+    data = valid_tx_update_payload()
     data["amount"] = 0.0
     response = client.patch("/transactions/1", json=data)
     assert response.status_code == 422
@@ -200,7 +210,7 @@ def test_update_transaction_permission_check():
         role=UserRole.viewer,
         is_active=True
     )
-    response = client.patch("/transactions/1", json=valid_tx_payload())
+    response = client.patch("/transactions/1", json=valid_tx_update_payload())
     assert response.status_code == 403
 
 
@@ -214,4 +224,30 @@ def test_delete_transaction_permission_check():
         is_active=True
     )
     response = client.delete("/transactions/1")
+    assert response.status_code == 403
+
+
+def test_list_transactions_permission_check():
+    app.dependency_overrides[require_viewer] = lambda: User(
+        id="1",
+        email="test@test.com",
+        name="Test User",
+        hashed_pw="dummy",
+        role=UserRole.anonymous,
+        is_active=True
+    )
+    response = client.get("/transactions")
+    assert response.status_code == 403
+
+
+def test_get_transaction_permission_check():
+    app.dependency_overrides[require_viewer] = lambda: User(
+        id="1",
+        email="test@test.com",
+        name="Test User",
+        hashed_pw="dummy",
+        role=UserRole.anonymous,
+        is_active=True
+    )
+    response = client.get("/transactions/1")
     assert response.status_code == 403
