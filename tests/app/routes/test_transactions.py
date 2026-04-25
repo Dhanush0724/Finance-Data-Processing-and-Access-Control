@@ -215,3 +215,61 @@ def test_delete_transaction_permission_check():
     )
     response = client.delete("/transactions/1")
     assert response.status_code == 403
+
+
+def test_list_transactions_permission_check():
+    app.dependency_overrides[require_viewer] = lambda: User(
+        id="1",
+        email="test@test.com",
+        name="Test User",
+        hashed_pw="dummy",
+        role=UserRole.analyst,
+        is_active=False
+    )
+    response = client.get("/transactions")
+    assert response.status_code == 403
+
+
+def test_get_transaction_permission_check():
+    app.dependency_overrides[require_viewer] = lambda: User(
+        id="1",
+        email="test@test.com",
+        name="Test User",
+        hashed_pw="dummy",
+        role=UserRole.analyst,
+        is_active=False
+    )
+    response = client.get("/transactions/1")
+    assert response.status_code == 403
+
+
+def test_list_transactions_empty_response(mock_service):
+    mock_service.list_transactions.return_value = valid_paginated_response()
+    response = client.get("/transactions")
+    assert response.status_code == 200
+    assert response.json()["total"] == 0
+
+
+def test_list_transactions_pagination(mock_service):
+    mock_service.list_transactions.return_value = valid_paginated_response(
+        items=[valid_tx_response()] * 50
+    )
+    response = client.get("/transactions?page=2&page_size=20")
+    assert response.status_code == 200
+    assert response.json()["total"] == 50
+    assert response.json()["page"] == 2
+
+
+def test_list_transactions_invalid_pagination(mock_service):
+    response = client.get("/transactions?page=0&page_size=20")
+    assert response.status_code == 422
+
+
+def test_list_transactions_invalid_page_size(mock_service):
+    response = client.get("/transactions?page=1&page_size=101")
+    assert response.status_code == 422
+
+
+def test_list_transactions_invalid_page_size_zero(mock_service):
+    response = client.get("/transactions?page=1&page_size=0")
+    assert response.status_code == 422
