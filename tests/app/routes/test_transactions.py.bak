@@ -34,7 +34,7 @@ def mock_service():
         yield mock
 
 
-# ── Helpers ─────────────────────────────────────────────────────
+# ── Helpers ────────────────────────────────────────────────────────────────────
 
 def valid_tx_payload():
     return {
@@ -61,16 +61,17 @@ def valid_tx_response():
 
 
 def valid_paginated_response(items=None):
+    """Matches PaginatedTransactions schema fields exactly."""
     return {
-        "items": items or [],
-        "total": len(items) if items else 0,
-        "page": 1,
-        "page_size": 20,
+        "items":       items or [],
+        "total":       len(items) if items else 0,
+        "page":        1,
+        "page_size":   20,
         "total_pages": 1,
     }
 
 
-# ── Tests ───────────────────────────────────────────────────────
+# ── Tests ──────────────────────────────────────────────────────────────────────
 
 def test_create_transaction_happy_path(mock_service):
     mock_service.create_transaction.return_value = valid_tx_response()
@@ -174,7 +175,43 @@ def test_ping():
 def test_export_summary():
     response = client.get("/transactions/export/summary")
     assert response.status_code == 200
-    assert response.json() == {
-        "message": "Export feature coming soon",
-        "status": "placeholder"
-    }
+    assert response.json() == {"message": "Export feature coming soon", "status": "placeholder"}
+
+
+def test_create_transaction_permission_check():
+    app.dependency_overrides[require_analyst] = lambda: User(
+        id="1",
+        email="test@test.com",
+        name="Test User",
+        hashed_pw="dummy",
+        role=UserRole.viewer,
+        is_active=True
+    )
+    response = client.post("/transactions", json=valid_tx_payload())
+    assert response.status_code == 403
+
+
+def test_update_transaction_permission_check():
+    app.dependency_overrides[require_analyst] = lambda: User(
+        id="1",
+        email="test@test.com",
+        name="Test User",
+        hashed_pw="dummy",
+        role=UserRole.viewer,
+        is_active=True
+    )
+    response = client.patch("/transactions/1", json=valid_tx_payload())
+    assert response.status_code == 403
+
+
+def test_delete_transaction_permission_check():
+    app.dependency_overrides[require_analyst] = lambda: User(
+        id="1",
+        email="test@test.com",
+        name="Test User",
+        hashed_pw="dummy",
+        role=UserRole.viewer,
+        is_active=True
+    )
+    response = client.delete("/transactions/1")
+    assert response.status_code == 403
