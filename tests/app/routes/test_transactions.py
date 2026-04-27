@@ -178,3 +178,72 @@ def test_export_summary():
         "message": "Export feature coming soon",
         "status": "placeholder"
     }
+
+
+def test_get_total_amount_happy_path(mock_service):
+    mock_service.list_transactions.return_value = valid_paginated_response(
+        items=[valid_tx_response()]
+    )
+    response = client.get("/transactions/summary/total")
+    assert response.status_code == 200
+    assert response.json()["total"] == 1000.0
+
+
+def test_get_total_amount_empty(mock_service):
+    mock_service.list_transactions.return_value = valid_paginated_response()
+    response = client.get("/transactions/summary/total")
+    assert response.status_code == 200
+    assert response.json()["total"] == 1000.0
+
+
+def test_create_transaction_currency_precision(mock_service):
+    data = valid_tx_payload()
+    data["amount"] = 100.1234
+    response = client.post("/transactions", json=data)
+    assert response.status_code == 201
+
+
+def test_update_transaction_currency_precision(mock_service):
+    data = valid_tx_payload()
+    data["amount"] = 100.1234
+    response = client.patch("/transactions/1", json=data)
+    assert response.status_code == 200
+
+
+def test_create_transaction_permission_check(mock_service):
+    app.dependency_overrides[require_analyst] = lambda: User(
+        id="1",
+        email="test@test.com",
+        name="Test User",
+        hashed_pw="dummy",
+        role=UserRole.viewer,
+        is_active=True
+    )
+    response = client.post("/transactions", json=valid_tx_payload())
+    assert response.status_code == 403
+
+
+def test_update_transaction_permission_check(mock_service):
+    app.dependency_overrides[require_analyst] = lambda: User(
+        id="1",
+        email="test@test.com",
+        name="Test User",
+        hashed_pw="dummy",
+        role=UserRole.viewer,
+        is_active=True
+    )
+    response = client.patch("/transactions/1", json=valid_tx_payload())
+    assert response.status_code == 403
+
+
+def test_delete_transaction_permission_check(mock_service):
+    app.dependency_overrides[require_analyst] = lambda: User(
+        id="1",
+        email="test@test.com",
+        name="Test User",
+        hashed_pw="dummy",
+        role=UserRole.viewer,
+        is_active=True
+    )
+    response = client.delete("/transactions/1")
+    assert response.status_code == 403
