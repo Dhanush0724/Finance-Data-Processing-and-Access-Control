@@ -215,3 +215,42 @@ def test_delete_transaction_permission_check():
     )
     response = client.delete("/transactions/1")
     assert response.status_code == 403
+
+
+def test_list_transactions_permission_check():
+    app.dependency_overrides[require_viewer] = lambda: User(
+        id="1",
+        email="test@test.com",
+        name="Test User",
+        hashed_pw="dummy",
+        role=UserRole.anonymous,
+        is_active=True
+    )
+    response = client.get("/transactions")
+    assert response.status_code == 403
+
+
+def test_get_transaction_permission_check():
+    app.dependency_overrides[require_viewer] = lambda: User(
+        id="1",
+        email="test@test.com",
+        name="Test User",
+        hashed_pw="dummy",
+        role=UserRole.anonymous,
+        is_active=True
+    )
+    response = client.get("/transactions/1")
+    assert response.status_code == 403
+
+
+def test_export_summary_permission_check():
+    app.dependency_overrides[require_viewer] = lambda: User(
+        id="1",
+        email="test@test.com",
+        name="Test User",
+        hashed_pw="dummy",
+        role=UserRole.anonymous,
+        is_active=True
+    )
+    response = client.get("/transactions/export/summary")
+    assert response.status_code == 403
