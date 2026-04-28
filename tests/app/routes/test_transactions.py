@@ -178,3 +178,9 @@ def test_export_summary():
         "message": "Export feature coming soon",
         "status": "placeholder"
     }
+
+
+def test_get_total_amount():
+    response = client.get("/transactions/summary/total")
+    assert response.status_code == 200
+    assert response.json() == {"total": 1000.0}
