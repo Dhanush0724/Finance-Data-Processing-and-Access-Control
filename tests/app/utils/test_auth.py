@@ -1,10 +1,13 @@
 import pytest
 from unittest.mock import patch
 from jose import JWTError
-
+from passlib.context import CryptContext
+from hashlib import sha256
 from app.utils.auth import (
     create_access_token,
-    decode_token
+    decode_token,
+    hash_password,
+    verify_password
 )
 
 
@@ -15,6 +18,44 @@ def mock_settings():
         mock.secret_key = 'secret_key'
         mock.algorithm = 'HS256'
         yield mock
+
+
+# ── Password Tests ─────────────────────────────────────────
+
+def test_hash_password():
+    plain_password = 'password123'
+    hashed_password = hash_password(plain_password)
+    assert hashed_password is not None
+
+
+def test_verify_password():
+    plain_password = 'password123'
+    hashed_password = hash_password(plain_password)
+    assert verify_password(plain_password, hashed_password) is True
+
+
+def test_verify_password_invalid():
+    plain_password = 'password123'
+    hashed_password = hash_password('wrong_password')
+    assert verify_password(plain_password, hashed_password) is False
+
+
+def test_verify_password_empty():
+    plain_password = ''
+    hashed_password = hash_password(plain_password)
+    assert verify_password(plain_password, hashed_password) is True
+
+
+def test_verify_password_zero():
+    plain_password = '0'
+    hashed_password = hash_password(plain_password)
+    assert verify_password(plain_password, hashed_password) is True
+
+
+def test_verify_password_negative():
+    plain_password = '-1'
+    hashed_password = hash_password(plain_password)
+    assert verify_password(plain_password, hashed_password) is True
 
 
 # ── Token Tests ───────────────────────────────────────────────
@@ -51,8 +92,6 @@ def test_decode_token_jwt_error(mock_settings):
         assert decoded is None
 
 
-# ── Safe Edge Cases ──────────────────────────────────────────
-
 def test_create_access_token_empty_subject(mock_settings):
     token = create_access_token('', 'admin')
     assert token is not None
@@ -61,3 +100,58 @@ def test_create_access_token_empty_subject(mock_settings):
 def test_create_access_token_empty_role(mock_settings):
     token = create_access_token('user123', '')
     assert token is not None
+
+
+def test_create_access_token_zero_subject(mock_settings):
+    token = create_access_token('0', 'admin')
+    assert token is not None
+
+
+def test_create_access_token_zero_role(mock_settings):
+    token = create_access_token('user123', '0')
+    assert token is not None
+
+
+def test_create_access_token_negative_subject(mock_settings):
+    token = create_access_token('-1', 'admin')
+    assert token is not None
+
+
+def test_create_access_token_negative_role(mock_settings):
+    token = create_access_token('user123', '-1')
+    assert token is not None
+
+
+# ── Edge Cases ─────────────────────────────────────────────
+
+def test_hash_password_empty():
+    hashed_password = hash_password('')
+    assert hashed_password is not None
+
+
+def test_hash_password_zero():
+    hashed_password = hash_password('0')
+    assert hashed_password is not None
+
+
+def test_hash_password_negative():
+    hashed_password = hash_password('-1')
+    assert hashed_password is not None
+
+
+def test_verify_password_empty_hashed():
+    plain_password = 'password123'
+    hashed_password = hash_password('')
+    assert verify_password(plain_password, hashed_password) is False
+
+
+def test_verify_password_zero_hashed():
+    plain_password = 'password123'
+    hashed_password = hash_password('0')
+    assert verify_password(plain_password, hashed_password) is False
+
+
+def test_verify_password_negative_hashed():
+    plain_password = 'password123'
+    hashed_password = hash_password('-1')
+    assert verify_password(plain_password, hashed_password) is False
